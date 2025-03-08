@@ -1,6 +1,14 @@
+import dotenv from 'dotenv'; // For ES Modules (if using "type": "module" in package.json)
+// OR
+require('dotenv').config();  // For CommonJS
+
+const GITHUB_ACCESS_TOKEN = process.env.GITHUB_ACCESS_TOKEN;
+
+
+
 window.onload = async function () {
-    const JSONBIN_API_URL = "https://api.jsonbin.io/v3/b/67cc3cfbacd3cb34a8f71b78"; 
-    const JSONBIN_SECRET_KEY = "$2a$10$Tksj0KA1EzgFADA66tfUYeDVqIetaiQyb1o7XdtWMlsjpv6hDNET6";
+    const GIST_API_URL = "https://api.github.com/gists/c1f9dbc8ddd2f59f5baa096aeb85b9f4";
+    const GIST_FILE_NAME = "data.json";
 
     const title = document.getElementById('title');
     const videoSection = document.getElementById('video-section');
@@ -23,26 +31,18 @@ window.onload = async function () {
 
     let heartClicks = 0;
     try {
-        const response = await fetch(`${JSONBIN_API_URL}/latest`, {
-            headers: { 'X-Master-Key': JSONBIN_SECRET_KEY }
-        });
+        const response = await fetch(GIST_API_URL);
         const data = await response.json();
+        const content = JSON.parse(data.files[GIST_FILE_NAME].content);
 
-        heartClicks = data.record.likes || 0;
+        heartClicks = content.likes || 0;
         heartCount.textContent = heartClicks;
 
         const today = new Date().toISOString().split('T')[0];
-        if (data.record.date !== today) {
-            await fetch(JSONBIN_API_URL, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': JSONBIN_SECRET_KEY
-                },
-                body: JSON.stringify({ likes: data.record.likes || 0, comments: [], date: today })
-            });
+        if (content.date !== today) {
+            await updateGist({ likes: content.likes || 0, comments: [], date: today });
         } else {
-            (data.record.comments || []).forEach(comment => {
+            (content.comments || []).forEach(comment => {
                 const commentDiv = document.createElement('div');
                 commentDiv.innerHTML = `<strong>${comment.username}:</strong> ${comment.text}`;
                 commentsList.appendChild(commentDiv);
@@ -55,19 +55,7 @@ window.onload = async function () {
     document.querySelector('.reactions').addEventListener('click', async () => {
         heartClicks++;
         heartCount.textContent = heartClicks;
-
-        try {
-            await fetch(JSONBIN_API_URL, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Master-Key': JSONBIN_SECRET_KEY
-                },
-                body: JSON.stringify({ likes: heartClicks })
-            });
-        } catch (error) {
-            console.error('Error updating likes:', error);
-        }
+        await updateGist({ likes: heartClicks });
     });
 
     submitCommentBtn.addEventListener('click', async () => {
@@ -80,22 +68,14 @@ window.onload = async function () {
             commentsList.appendChild(commentDiv);
 
             try {
-                const response = await fetch(`${JSONBIN_API_URL}/latest`, {
-                    headers: { 'X-Master-Key': JSONBIN_SECRET_KEY }
-                });
+                const response = await fetch(GIST_API_URL);
                 const data = await response.json();
+                const content = JSON.parse(data.files[GIST_FILE_NAME].content);
 
-                const comments = data.record.comments || [];
+                const comments = content.comments || [];
                 comments.push({ username, text: commentText });
 
-                await fetch(JSONBIN_API_URL, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Master-Key': JSONBIN_SECRET_KEY
-                    },
-                    body: JSON.stringify({ likes: data.record.likes || 0, comments, date: data.record.date })
-                });
+                await updateGist({ likes: content.likes || 0, comments, date: content.date });
             } catch (error) {
                 console.error('Error saving comment:', error);
             }
@@ -120,4 +100,22 @@ window.onload = async function () {
             alert('Link copied to clipboard!');
         });
     });
+
+    async function updateGist(updatedData) {
+        await fetch(GIST_API_URL, {
+            method: 'PATCH',
+            headers: {
+                'Authorization': 'token ' + GITHUB_ACCESS_TOKEN,
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                files: {
+                    [GIST_FILE_NAME]: {
+                        content: JSON.stringify(updatedData, null, 2)
+                    }
+                }
+            })
+        });
+    }
 };
