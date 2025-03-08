@@ -22,28 +22,17 @@ window.onload = async function () {
     video.addEventListener('pause', () => video.setAttribute('controls', true));
     video.addEventListener('ended', () => video.setAttribute('controls', true));
 
-    let heartClicks = 0;
-    try {
-        const response = await fetch(GIST_API_URL);
-        const data = await response.json();
-        const content = JSON.parse(data.files[GIST_FILE_NAME].content);
-
-        heartClicks = content.likes || 0;
+    database.ref('likes').on('value', (snapshot) => {
+        heartClicks = snapshot.val() || 0;
         heartCount.textContent = heartClicks;
-
-        const today = new Date().toISOString().split('T')[0];
-        if (content.date !== today) {
-            await updateGist({ likes: content.likes || 0, comments: [], date: today });
-        } else {
-            (content.comments || []).forEach(comment => {
-                const commentDiv = document.createElement('div');
-                commentDiv.innerHTML = `<strong>${comment.username}:</strong> ${comment.text}`;
-                commentsList.appendChild(commentDiv);
-            });
-        }
-    } catch (error) {
-        console.error('Error loading data:', error);
-    }
+    });
+    
+    document.querySelector('.reactions').addEventListener('click', async () => {
+        database.ref('likes').transaction((currentLikes) => {
+            return (currentLikes || 0) + 1;
+        });
+    });
+    
 
     document.querySelector('.reactions').addEventListener('click', async () => {
         heartClicks++;
@@ -51,31 +40,29 @@ window.onload = async function () {
         await updateGist({ likes: heartClicks });
     });
 
-    submitCommentBtn.addEventListener('click', async () => {
+    submitCommentBtn.addEventListener('click', () => {
         const commentText = commentInput.value.trim();
         const username = usernameInput.value.trim() || 'Anonymous';
-
+    
         if (commentText) {
-            const commentDiv = document.createElement('div');
-            commentDiv.innerHTML = `<strong>${username}:</strong> ${commentText}`;
-            commentsList.appendChild(commentDiv);
-
-            try {
-                const response = await fetch(GIST_API_URL);
-                const data = await response.json();
-                const content = JSON.parse(data.files[GIST_FILE_NAME].content);
-
-                const comments = content.comments || [];
-                comments.push({ username, text: commentText });
-
-                await updateGist({ likes: content.likes || 0, comments, date: content.date });
-            } catch (error) {
-                console.error('Error saving comment:', error);
-            }
-
+            const newCommentRef = database.ref('comments').push();
+            newCommentRef.set({
+                username: username,
+                text: commentText
+            });
+    
             commentInput.value = '';
         }
     });
+    
+    // Display comments in real-time
+    database.ref('comments').on('child_added', (snapshot) => {
+        const commentData = snapshot.val();
+        const commentDiv = document.createElement('div');
+        commentDiv.innerHTML = `<strong>${commentData.username}:</strong> ${commentData.text}`;
+        commentsList.appendChild(commentDiv);
+    });
+    
 
     document.getElementById('download-btn').addEventListener('click', () => {
         const videoUrl = document.querySelector('video source').src;
