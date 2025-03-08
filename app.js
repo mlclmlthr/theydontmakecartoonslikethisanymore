@@ -16,7 +16,7 @@ window.onload = async function () {
         title.style.display = 'none';
         videoSection.style.display = 'block';
         video.play();
-    }, 2000);
+    }, 1000);
 
     video.addEventListener('play', () => video.removeAttribute('controls'));
     video.addEventListener('pause', () => video.setAttribute('controls', true));
