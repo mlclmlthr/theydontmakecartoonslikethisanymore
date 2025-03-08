@@ -1,6 +1,6 @@
 window.onload = async function () {
-    const JSONBIN_API_URL = "https://api.jsonbin.io/v3/b/67cc3cfbacd3cb34a8f71b78";  // Replace with your JSONBin ID
-    const JSONBIN_SECRET_KEY = "$2a$10$Tksj0KA1EzgFADA66tfUYeDVqIetaiQyb1o7XdtWMlsjpv6hDNET6";  // Replace with your JSONBin Secret Key
+    const JSONBIN_API_URL = "https://api.jsonbin.io/v3/b/67cc3cfbacd3cb34a8f71b78"; 
+    const JSONBIN_SECRET_KEY = "$2a$10$Tksj0KA1EzgFADA66tfUYeDVqIetaiQyb1o7XdtWMlsjpv6hDNET6";
 
     const title = document.getElementById('title');
     const videoSection = document.getElementById('video-section');
@@ -9,33 +9,27 @@ window.onload = async function () {
     const commentsList = document.getElementById('comments-list');
     const commentInput = document.getElementById('comment-input');
     const submitCommentBtn = document.getElementById('submit-comment');
+    const usernameInput = document.getElementById('username-input');
 
     setTimeout(() => {
         title.style.display = 'none';
         videoSection.style.display = 'block';
-        video.play(); // Autoplay video after 2 seconds
+        video.play();
     }, 2000);
 
-    video.addEventListener('play', () => {
-        video.removeAttribute('controls'); // Hide controls while playing
-    });
+    video.addEventListener('play', () => video.removeAttribute('controls'));
+    video.addEventListener('pause', () => video.setAttribute('controls', true));
+    video.addEventListener('ended', () => video.setAttribute('controls', true));
 
-    video.addEventListener('pause', () => {
-        video.setAttribute('controls', true); // Show controls when paused
-    });
-
-    video.addEventListener('ended', () => {
-        video.setAttribute('controls', true); // Show controls after video ends
-    });
-
+    let heartClicks = 0;
     try {
         const response = await fetch(`${JSONBIN_API_URL}/latest`, {
             headers: { 'X-Master-Key': JSONBIN_SECRET_KEY }
         });
         const data = await response.json();
 
-        let likes = data.record.likes || 0;
-        heartCount.textContent = likes;
+        heartClicks = data.record.likes || 0;
+        heartCount.textContent = heartClicks;
 
         const today = new Date().toISOString().split('T')[0];
         if (data.record.date !== today) {
@@ -59,25 +53,18 @@ window.onload = async function () {
     }
 
     document.querySelector('.reactions').addEventListener('click', async () => {
+        heartClicks++;
+        heartCount.textContent = heartClicks;
+
         try {
-            const response = await fetch(`${JSONBIN_API_URL}/latest`, {
-                headers: { 'X-Master-Key': JSONBIN_SECRET_KEY }
-            });
-            const data = await response.json();
-
-            let likes = data.record.likes || 0;
-            likes++;
-
             await fetch(JSONBIN_API_URL, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Master-Key': JSONBIN_SECRET_KEY
                 },
-                body: JSON.stringify({ likes, comments: data.record.comments || [], date: data.record.date })
+                body: JSON.stringify({ likes: heartClicks })
             });
-
-            heartCount.textContent = likes;
         } catch (error) {
             console.error('Error updating likes:', error);
         }
@@ -85,7 +72,7 @@ window.onload = async function () {
 
     submitCommentBtn.addEventListener('click', async () => {
         const commentText = commentInput.value.trim();
-        const username = 'Anonymous';
+        const username = usernameInput.value.trim() || 'Anonymous';
 
         if (commentText) {
             const commentDiv = document.createElement('div');
@@ -128,23 +115,9 @@ window.onload = async function () {
     });
 
     document.getElementById('link-btn').addEventListener('click', () => {
-        const url = encodeURIComponent(window.location.href);
-        const text = encodeURIComponent("Check out this nostalgic cartoon quote!");
-
-        const shareOptions = `
-            <div class="share-ui">
-                <a href="https://www.facebook.com/sharer/sharer.php?u=${url}" target="_blank"><img src="assets/facebook.svg" alt="Facebook"></a>
-                <a href="https://www.instagram.com/" target="_blank"><img src="assets/instagram.svg" alt="Insta"></a>
-                <a href="https://www.youtube.com/" target="_blank"><img src="assets/youtube.svg" alt="Yt"></a>
-            </div>
-        `;
-
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = shareOptions;
-        document.body.appendChild(tempDiv);
-
-        setTimeout(() => {
-            tempDiv.remove();
-        }, 5000);
+        const url = window.location.href;
+        navigator.clipboard.writeText(url).then(() => {
+            alert('Link copied to clipboard!');
+        });
     });
 };
