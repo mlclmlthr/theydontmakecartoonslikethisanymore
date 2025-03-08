@@ -1,13 +1,6 @@
-import dotenv from 'dotenv'; // For ES Modules (if using "type": "module" in package.json)
-// OR
-require('dotenv').config();  // For CommonJS
-
-const GITHUB_ACCESS_TOKEN = process.env.GITHUB_ACCESS_TOKEN;
-
-
 
 window.onload = async function () {
-    const GIST_API_URL = "https://api.github.com/gists/c1f9dbc8ddd2f59f5baa096aeb85b9f4";
+    const GIST_API_URL = "/getGistData"; // Backend URL
     const GIST_FILE_NAME = "data.json";
 
     const title = document.getElementById('title');
@@ -119,3 +112,4 @@ window.onload = async function () {
         });
     }
 };
+
